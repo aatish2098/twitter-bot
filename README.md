@@ -1,7 +1,11 @@
 # twitter-bot
-This repo can act as framework for interacting with any twitter community
+This repo can act as framework for interacting with any twitter community, just change the listid in ```Scrappon.py``` and topics array should be replaced by your domain's array
 
-### Logic for fetching and storing tweets to db
+Don't do ```pip install -r requirements.txt```, its just a pip freeze and not curated yet
+
+This bot solves the problem for rate limiting by fetching tweet ids with a personal account but getting tweet details through Selenium.
+
+### Logic for fetching and storing tweets to db (1-4 done)
 
 1. When any trending topic in my locale matches a topic mentioned in ```topics.py```
 2. Iterating through my custom list of users and getting tweets from there
@@ -9,7 +13,6 @@ This repo can act as framework for interacting with any twitter community
 4. Add logic to keep data redundant by using ```twitter_id``` (don't add to db if not unique)
 5. The polling of data needs some logic so that fetching is done in a such a way that it is up-to-date and within the rate limiting (fixed)
 6. Add likes counter in the db too, help us tell what is good data and send to ai agent when forming tweet
-
 
 ### Bot logic
 
@@ -26,3 +29,5 @@ This repo can act as framework for interacting with any twitter community
 2. How will memory be managed and reply to mentions, should have some context from previous tweets
 3. Maintain a consistent personality
 4. Scheduler for polling data, tweeting and replying
+
+
