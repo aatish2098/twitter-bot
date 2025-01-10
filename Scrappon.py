@@ -1,11 +1,14 @@
 import asyncio
 import os
 import re
-
+from deep_translator import GoogleTranslator
 import tweety.exceptions
 from qdrant_client.http import models as qdrant_models
+from stweet import Language
 from tweety import TwitterAsync
 from pymongo import MongoClient
+from tweety.types import SelfThread
+
 from topics import topics
 from tweety.constants import HOME_TIMELINE_TYPE_FOR_YOU, HOME_TIMELINE_TYPE_FOLLOWING
 from tweety.filters import SearchFilters
@@ -16,7 +19,9 @@ from usernames import usernames  # Your array of usernames
 # CLEANING TWEET TEXT
 def clean_tweet_text(tweet_text: str) -> str:
     tweet_text = re.sub(r"http\S+", "", tweet_text)  # remove urls
-    return tweet_text.strip()
+    translated=GoogleTranslator(source="auto", target="en").translate(tweet_text).strip()
+    return translated
+
 
 
 async def fetch_and_store_tweets():
@@ -25,21 +30,57 @@ async def fetch_and_store_tweets():
     tweets_collection = db.OldTweets
     app = TwitterAsync("session")
     await app.sign_in(os.environ['username'], os.environ['password'])
-    trendings=await app.get_trends()
-    tweets = await app.get_home_timeline(timeline_type=HOME_TIMELINE_TYPE_FOLLOWING,pages=3)
+
+
+    topic_keywords = set(word.lower() for topic in topics for word in topic.split())
+    trendings = await app.get_trends()
     for trending in trendings:
-        if trending._get_name() in topics:
-            print(trending._get_name())
+        if trending._get_name().lower() in topic_keywords:
+            trending_tweets = await app.search(trending._get_name(), filter_=SearchFilters.Latest(),pages=1,wait_time=2)
+            for tweet in trending_tweets:
+                tweet_detail = await app.tweet_detail(
+                    f"https://twitter.com/{tweet.author.username}/status/{tweet.id}")
+                tweet_text = tweet_detail._get_tweet_text()
+                cleaned_text = clean_tweet_text(tweet_text)
+                print(tweet_text)
+                # Check if tweet has more than 3 words
+                if len(cleaned_text.split()) > 3:
+                    # Prepare doc for MongoDB
+                    doc = {
+                        "tweet_id": str(tweet.id),
+                        "username": tweet_detail.author,
+                        "tweet_text": cleaned_text,
+                        "created_on": tweet_detail.created_on
+                    }
+                    # Insert into MongoDB
+                    tweets_collection.insert_one(doc)
+
+    tweets = await app.get_list_tweets(list_id=1877641960028082596, pages=2, wait_time=2)
     for tweet in tweets:
-        tweet_detail = await app.tweet_detail(f"https://twitter.com/{tweet.author.username}/status/{tweet.id}")
-        print(tweet_detail.text)
-        for topic in topics:
-            if topic.lower() in tweet_detail.lower():
-                print("tweet to him", tweet_detail.text)
+        if isinstance(tweet, SelfThread):
+            for thread in tweet.tweets:
+                tweet_detail = await app.tweet_detail(
+                    f"https://twitter.com/{thread.author.username}/status/{thread.id}")
+        else:
+            tweet_detail = await app.tweet_detail(f"https://twitter.com/{tweet.author.username}/status/{tweet.id}")
+        # Check each tweet for matches
+        if any(word.lower() in topic_keywords for word in tweet_detail.text.split()):
+            tweet_text = tweet_detail._get_tweet_text()
+            cleaned_text = clean_tweet_text(tweet_text)
+            # Check if tweet has more than 3 words
+            if len(cleaned_text.split()) > 3:
+                # Prepare doc for MongoDB
+                doc = {
+                    "tweet_id": str(tweet.id),
+                    "username": tweet_detail.author,
+                    "tweet_text": cleaned_text,
+                    "created_on": tweet_detail.created_on
+                }
+                # Insert into MongoDB
+                tweets_collection.insert_one(doc)
 
-
-    #tweets = app.get_home_timeline(timeline_type=HOME_TIMELINE_TYPE_FOLLOWING)
-    #for tweet in tweets:
+    # tweets = app.get_home_timeline(timeline_type=HOME_TIMELINE_TYPE_FOLLOWING)
+    # for tweet in tweets:
     #    print(tweet)
     # for target_username in usernames:
     #     try:
