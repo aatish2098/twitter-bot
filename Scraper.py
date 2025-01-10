@@ -13,7 +13,7 @@ def fetch_tweet_content(tweet_id: int):
     options.add_argument("--no-sandbox")
 
     # Path to your ChromeDriver
-    driver_path = "C:\\Users\\user\\Downloads\\chromedriver-win64\\chromedriver-win64\\chromedriver.exe"
+    driver_path = "./chromedriver.exe"
     service = Service(driver_path)
     driver = webdriver.Chrome(service=service, options=options)
 
@@ -23,7 +23,7 @@ def fetch_tweet_content(tweet_id: int):
         driver.get(url)
 
         # Wait for the page to load (adjust the sleep time if needed)
-        time.sleep(1)
+        time.sleep(4)
 
         # Extract the <title> tag content
         title = driver.title
