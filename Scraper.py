@@ -5,7 +5,7 @@ from selenium.webdriver.chrome.options import Options
 import time
 
 
-def fetch_tweet_content(tweet_id):
+def fetch_tweet_content(tweet_id: int):
     # Set up Selenium WebDriver with Chrome
     options = Options()
     options.add_argument("--headless")  # Run in headless mode (no browser UI)
@@ -23,7 +23,7 @@ def fetch_tweet_content(tweet_id):
         driver.get(url)
 
         # Wait for the page to load (adjust the sleep time if needed)
-        time.sleep(2)
+        time.sleep(1)
 
         # Extract the <title> tag content
         title = driver.title
@@ -43,13 +43,3 @@ def fetch_tweet_content(tweet_id):
     finally:
         driver.quit()
 
-if __name__ == "__main__":
-    # Example usage with multiple tweet IDs
-    tweet_ids = [
-        "1877469236626395590",
-        "1877575510366011552"
-    ]
-
-    for tweet_id in tweet_ids:
-        tweet_content = fetch_tweet_content(tweet_id)
-        print(f"Tweet ID: {tweet_id}\nContent: {tweet_content}\n")

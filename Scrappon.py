@@ -7,6 +7,7 @@ from pymongo import MongoClient
 from tweety.types import SelfThread
 
 from topics import topics
+from Scraper import fetch_tweet_content
 from tweety.constants import HOME_TIMELINE_TYPE_FOR_YOU, HOME_TIMELINE_TYPE_FOLLOWING
 from tweety.filters import SearchFilters
 
@@ -35,19 +36,17 @@ async def fetch_and_store_tweets():
         if trending._get_name().lower() in topic_keywords:
             trending_tweets = await app.search(trending._get_name(), filter_=SearchFilters.Latest(),pages=1,wait_time=2)
             for tweet in trending_tweets:
-                tweet_detail = await app.tweet_detail(
-                    f"https://twitter.com/{tweet.author.username}/status/{tweet.id}")
-                tweet_text = tweet_detail._get_tweet_text()
-                cleaned_text = clean_tweet_text(tweet_text)
-                print(tweet_text)
+                tweet_detail = fetch_tweet_content(tweet.id)
+                cleaned_text = clean_tweet_text(tweet_detail)
+                print(cleaned_text)
                 # Check if tweet has more than 3 words
                 if len(cleaned_text.split()) > 3:
                     # Prepare doc for MongoDB
                     doc = {
                         "tweet_id": str(tweet.id),
-                        "username": tweet_detail.author,
+                        "username": tweet.author,
                         "tweet_text": cleaned_text,
-                        "created_on": tweet_detail.created_on
+                        "created_on": tweet.created_on
                     }
                     # Insert into MongoDB
                     tweets_collection.insert_one(doc)
@@ -55,23 +54,24 @@ async def fetch_and_store_tweets():
     tweets = await app.get_list_tweets(list_id=1877641960028082596, pages=2, wait_time=2)
     for tweet in tweets:
         if isinstance(tweet, SelfThread):
-            for thread in tweet.tweets:
-                tweet_detail = await app.tweet_detail(
-                    f"https://twitter.com/{thread.author.username}/status/{thread.id}")
+            continue
+            # Don't know how to fix without large overhead
+            # for thread in tweet.tweets:
+            #     tweet_detail = await app.tweet_detail(
+            #         f"https://twitter.com/{thread.author.username}/status/{thread.id}")
         else:
-            tweet_detail = await app.tweet_detail(f"https://twitter.com/{tweet.author.username}/status/{tweet.id}")
+            tweet_detail = fetch_tweet_content(tweet.id)
         # Check each tweet for matches
         if any(word.lower() in topic_keywords for word in tweet_detail.text.split()):
-            tweet_text = tweet_detail._get_tweet_text()
-            cleaned_text = clean_tweet_text(tweet_text)
+            cleaned_text = clean_tweet_text(tweet_detail)
             # Check if tweet has more than 3 words
             if len(cleaned_text.split()) > 3:
                 # Prepare doc for MongoDB
                 doc = {
                     "tweet_id": str(tweet.id),
-                    "username": tweet_detail.author,
+                    "username": tweet.author,
                     "tweet_text": cleaned_text,
-                    "created_on": tweet_detail.created_on
+                    "created_on": tweet.created_on
                 }
                 # Insert into MongoDB
                 tweets_collection.insert_one(doc)
