@@ -2,9 +2,6 @@ import asyncio
 import os
 import re
 from deep_translator import GoogleTranslator
-import tweety.exceptions
-from qdrant_client.http import models as qdrant_models
-from stweet import Language
 from tweety import TwitterAsync
 from pymongo import MongoClient
 from tweety.types import SelfThread
