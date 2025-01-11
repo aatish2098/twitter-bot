@@ -31,3 +31,11 @@ This bot solves the problem for rate limiting by fetching tweet ids with a perso
 4. Scheduler for polling data, tweeting and replying
 
 
+### Fetch Latest Tweets by Likes + Vector Embeddings
+Combining Relevance:
+
+Option A: First do a vector embedding search to see which tweets semantically match the user’s mention. Then from those results, pick the top ones sorted by likes.
+
+Option B: Use a heuristic that factors in both semantic relevance + popularity (likes). You might do a quick filter for tweets with “at least X likes” to ensure they’re meaningful.
+
+

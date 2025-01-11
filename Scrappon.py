@@ -8,8 +8,7 @@ from tweety.types import SelfThread
 from typing import Any
 from pymongo.collection import Collection
 from topics import topics
-from Scraper import fetch_tweet_content
-from tweety.constants import HOME_TIMELINE_TYPE_FOR_YOU, HOME_TIMELINE_TYPE_FOLLOWING
+from Scraper import fetch_tweet_content, fetch_tweet_metrics
 from tweety.filters import SearchFilters
 
 from usernames import usernames  # Your array of usernames
@@ -22,28 +21,38 @@ def clean_tweet_text(tweet_text: str) -> str:
     return translated
 
 
-def add_to_mongo(tweet: Any, cleaned_text: str, tweets_collection: Collection) -> None:
+def add_to_mongo(tweet: Any, metrics: dict, cleaned_text: str, tweets_collection: Collection) -> None:
     # Check if tweet has more than 3 words
     if len(cleaned_text.split()) > 3:
         # Prepare doc for MongoDB
         doc = {
             "tweet_id": str(tweet.id),
-            "username": tweet.author.name,
+            "username": tweet.author.username,
+            "Verified": tweet.author.verified,
             "tweet_text": cleaned_text,
-            "created_on": tweet.created_on
+            "created_on": tweet.created_on,
+            "metrics": metrics
         }
         # Insert into MongoDB
-        tweets_collection.insert_one(doc)
-        print("added tweet by",tweet.author.name)
+        existing_doc = tweets_collection.find_one({"tweet_id": str(tweet.id)})
+        # fetch and add to DB logic, to reply later if met threshold
+        if existing_doc:
+            # Update if metrics have changed
+            if existing_doc.get('metrics', {}).get('likes') != metrics.get('likes'):
+                print(f"Updating previous tweet by {tweet.author.username}")
+                tweets_collection.update_one(
+                    {"tweet_id": str(tweet.id)},
+                    {"$set": doc}
+                )
+        else:
+            # Insert new tweet
+            print(f"Adding new tweet by {tweet.author.username}")
+            tweets_collection.insert_one(doc)
 
 
-async def fetch_and_store_tweets():
-    client = MongoClient("mongodb://localhost:27017/")
-    db = client['Knowledge']
-    tweets_collection = db.OldTweets
+async def fetch_and_store_trending(tweets_collection: Collection):
     app = TwitterAsync("session")
     await app.sign_in(os.environ['username'], os.environ['password'])
-
     topic_keywords = set(word.lower() for topic in topics for word in topic.split())
     trendings = await app.get_trends()
     for trending in trendings:
@@ -51,16 +60,20 @@ async def fetch_and_store_tweets():
             print(trending._get_name())
             trending_tweets = await app.search(trending._get_name(), filter_=SearchFilters.Latest(), pages=2,
                                                wait_time=2)
-
             for tweet in trending_tweets:
-                tweet_detail = fetch_tweet_content(tweet.id)
-                if trending._get_name() in tweet_detail:
-                    cleaned_text = clean_tweet_text(tweet_detail)
-                    add_to_mongo(tweet, cleaned_text, tweets_collection)
-            return
+                tweet_text = fetch_tweet_content(tweet.id)
+                metrics = fetch_tweet_metrics(tweet.id)
+                if trending._get_name() in tweet_text:
+                    cleaned_text = clean_tweet_text(tweet_text)
+                    add_to_mongo(tweet, metrics, cleaned_text, tweets_collection)
 
+
+async def fetch_and_store_list(tweets_collection: Collection):
+    app = TwitterAsync("session")
+    await app.sign_in(os.environ['username'], os.environ['password'])
     tweets = await app.get_list_tweets(list_id=1877641960028082596, pages=2, wait_time=2)
     # tweets = app.get_home_timeline(timeline_type=HOME_TIMELINE_TYPE_FOLLOWING)
+    topic_keywords = set(word.lower() for topic in topics for word in topic.split())
     for tweet in tweets:
         if isinstance(tweet, SelfThread):
             continue
@@ -69,13 +82,19 @@ async def fetch_and_store_tweets():
             #     tweet_detail = await app.tweet_detail(
             #         f"https://twitter.com/{thread.author.username}/status/{thread.id}")
         else:
-            tweet_detail = fetch_tweet_content(tweet.id)
+            tweet_text = fetch_tweet_content(tweet.id)
+            metrics = fetch_tweet_metrics(tweet.id)
         # Check each tweet for matches
-        if any(word.lower() in topic_keywords for word in tweet_detail.split()):
-            cleaned_text = clean_tweet_text(tweet_detail)
-            add_to_mongo(tweet, cleaned_text, tweets_collection)
+        if any(word.lower() in topic_keywords for word in tweet_text.split()):
+            cleaned_text = clean_tweet_text(tweet_text)
+            add_to_mongo(tweet, metrics, cleaned_text, tweets_collection)
 
 
 # MAIN ENTRY POINT
+
 if __name__ == "__main__":
-    asyncio.run(fetch_and_store_tweets())
+    client = MongoClient("mongodb://localhost:27017/")
+    db = client['Knowledge']
+    tweets_collection = db.OldTweets
+    asyncio.run(fetch_and_store_list(tweets_collection))
+    asyncio.run(fetch_and_store_trending(tweets_collection))
