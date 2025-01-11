@@ -68,6 +68,11 @@ topics = [
     "Marcelo",
     "Thomas Muller",
     "Pierre Emerick Aubameyang",
+    "Chiesa",
+    "Omar Marmoush",
+    "Barcola",
+    "Jota",
+    "Joao Felix",
 
     # 63–77: 15 Legends (European Football Greats)
     "Zinedine Zidane",

@@ -38,4 +38,4 @@ Option A: First do a vector embedding search to see which tweets semantically ma
 
 Option B: Use a heuristic that factors in both semantic relevance + popularity (likes). You might do a quick filter for tweets with “at least X likes” to ensure they’re meaningful.
 
-
+Maintain a list of footballers famous and clubs famous, keep iterating and checking if there multiple tweets in the last few hours or minutes based on created_on, then we make a tweet

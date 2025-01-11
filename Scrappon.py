@@ -51,10 +51,10 @@ async def fetch_and_store_trending(tweets_collection: Collection):
     topic_keywords = set(word.lower() for topic in topics for word in topic.split())
     trendings = await app.get_trends()
     for trending in trendings:
-        if trending._get_name().lower() in topic_keywords:
+        print(f"This {trending._get_name()} starts here:")
+        if trending._get_name() in topics:
             trending_tweets = await app.search(trending._get_name(), filter_=SearchFilters.Latest(), pages=2,
                                                wait_time=2)
-            print(f"This {trending._get_name()} starts here:")
             for tweet in trending_tweets:
                 if trending._get_name() in tweet.text:
                     cleaned_text = clean_tweet_text(tweet.text)

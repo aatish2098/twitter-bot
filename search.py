@@ -58,40 +58,91 @@ from phi.agent import Agent
 from phi.tools.spider import SpiderTools
 
 agent = Agent(
+    name="Banter Ball",
+    agent_id="banterball-agent",
+    introduction="Yo, I'm Banter Ball. Just for fun.",
     model=OpenAILike(
         id="meta-llama/Llama-3.3-70B-Instruct",
         api_key=os.environ["OPENAI_API_KEY"],
         base_url="https://api.hyperbolic.xyz/v1",
-    ))
-agent.print_response("""A Pedri masterclass tomorrow is all I ask Lord
-@Mario___RM Balde >> Fran García
+    ),
+system_prompt = """
+You are a witty Gen-Z football fanatic named 'BanterBall'. 
+and you love banter with fans. 
+You speak in Gen-Z slang, occasionally dropping playful roasts. 
+sometimes use profanities but not often
+but feel free to use humor and mild sarcasm.
+""",
+agent_data = {
+    "favorite_team": "Manchester United",
+    "favorite_player": "Cristiano Ronaldo",
+    "preferred_style": "Gen-Z banter, mild sarcasm, witty roasts",
+},
+use_default_system_message=False,
+task="Create entertaining, gen-z friendly tweets about football",
+prevent_hallucinations=True,
+expected_output="Output a short tweet in first-person voice.",
+prevent_prompt_leakage=True,
+add_name_to_instructions=False,
+add_datetime_to_instructions=True
+)
 
-Cubarsí >> Asencio
 
-Araujo >> Rudiger
+agent.print_response("""@ChelseaFC Joao Felix is so unserious NGL!
+Joao Felix for me needs to start on the left in the Premier league. Him left, Palmer 10 & Sancho on the right please
+#Chelsea 5-0 Morecambe: Tosin becomes unlikely Blues goalscorer as Joao Felix shows his class 🤩🔵
 
-Pedri >> Camavinga
+✍️ @NJEmms
+@CFC_OBED We need to find a Balance for Joao Felix and Palmer to play together
+Joao Felix should be considered more in the premier league. They are just wasting him
+Joao Felix is a starter
+I hope I don’t see Joao Felix hype on my TL yuno
+Joao Felix I almost forgave you for what you did to the bug with your game today
+A brilliant performance from Joao Felix... 💤🔵
+Only Joao Felix fans are allowed to like this post. 
 
-I agree with the rest
-@sammy__dray Rodri
-Bed
-Pedri
-GOETZE?????? Pedri & Foden go think say dem di play pass GOETZE 😂😂😂
+Special talent 💙👊
+@ChelseaFC Joao Felix, they can never make me hate you
+@ChelseaFC The half time subs changed the game. We should play Veiga more in DM. T. George is the real deal. Sancho is a very good player. Nkunku with his goal. Joao Felix with his goals. Tosin my MOTM.
+Joao Felix best player on earth btw
+First clean sheet of 2025.
 
-Dey play
+Tosin Adaribioyo '40 '70
+Christopher Nkunku 50'
+Joao Felix 75' 77'
 
-Mario Goetze 2013-2016 man was a little magician in midfield
-@Josemaguti3 @Mario___RM X Pedri? 🤣🤣🤣🤣Have they put poison in your food?
-@faisalosophy_ @YashRMFC Players behind the ball are CM. It like putting Bruno in a Modric or Kroos conversation because Bruno have more goals, assist, key passes etc.
+#Chels1905 #CFC
+Oh, bravo! Tosin, Nkunku, and Joao Felix must be so proud, picking on a minor club. True champions! 😂
+#FAcup
+Joao Felix with freedom Is one of the most dangerous Players in the World 🥶
+Tosin and Joao Felix were able to make it from anywhere on the pitch today. 
 
-I am not an hater... I won't say olmo is better Valverde... Same way I won't say Bellingham is better than Pedri.
-Pedri and Bellingham are gonna settle the better midfielder debate on Sunday by one of them scoring and then they both make out hardcore style
-@Joshua_Ubeku Pedri rodri Jude
-@Nawas_masood Pedri is clr off both of them
-@thicknation_00 @Big0lBean @PandaNoComply I can understand people saying Messi is better then The Goat.
+5-0 win for the Blues over Morecambe in the 3rd round of the FA cup. 
 
-But Pedri then. Bellingham? No not even in Pedri dream he is better
-Because Pedri doesn't have the balls to protect his teammates
-Morning Gavi and Pedri trophy pics 🏆 👿
+Let’s go!!
+@Adeyanju22 Joao Felix made the final 😭
+@Jaythekeed @the_akinola make he Dey joke now, he rates Joao Felix but he no rate Jackson 🤣🤣🤣🤣
+Joao Felix and Palmer can play together.
+Full-Time.
 
-These are the recent tweets about Pedri, base your opinion and make a joke about in gen-z style to get engagment on twitter, use basic hashtags and fewer emojis""", markdown=True)
+Chelsea 5-0 Morecambe
+
+⚽️⚽️ 39', 70' Tosin Adarabioyo
+⚽️ 50' Christopher Nkunku
+⚽️⚽️ 75', 77' Joao Felix
+
+📊 Statistics
+
+81% - 19% Ball Possession
+28 - 7 Shots
+Our Wines & Spirit POS System helps you manage stock,accurate reporting,MPESA integration,Receipting etc📞0716413386
+
+#MUFC Chelsea Adarabioyo Nkunku Joao Felix Liverpool Chiesa Diego Jota Trent Danns #FACup Tosin Kairo Atalanta Reece James Nunez Lavia Kvara Napoli Marmoush
+Joao Felix they can never make me hate you
+@ChelseaFC Joao Felix🛐🛐
+Guys hating on Joao Felix are too cringe man honestly
+I can never hate Joao Felix
+This This Tops A Playoff W starts here:
+
+Generate a fresh tweet about Joao Felix. Keep it under 280 characters and write it referring the above tweets and with focus to be genuine, use 2 or 3 hashtags and fewer emojis""",
+                     markdown=True)
