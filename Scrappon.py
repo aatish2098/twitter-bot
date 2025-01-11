@@ -7,6 +7,8 @@ from pymongo import MongoClient
 from tweety.types import SelfThread
 from typing import Any
 from pymongo.collection import Collection
+
+from search import fetch_with_raw_tweets
 from topics import topics
 from tweety.filters import SearchFilters
 
@@ -52,14 +54,16 @@ async def fetch_and_store_trending(tweets_collection: Collection):
     trendings = await app.get_trends()
     for trending in trendings:
         print(f"This {trending._get_name()} starts here:")
-        if trending._get_name() in topics:
+        if trending._get_name() in topics or trending._get_name().lower() in topic_keywords:
             trending_tweets = await app.search(trending._get_name(), filter_=SearchFilters.Latest(), pages=2,
                                                wait_time=2)
+            tweets_gen=[]
             for tweet in trending_tweets:
                 if trending._get_name() in tweet.text:
                     cleaned_text = clean_tweet_text(tweet.text)
-                    print(cleaned_text)
+                    tweets_gen.append(cleaned_text)
                     add_to_mongo(tweet, cleaned_text, tweets_collection)
+            fetch_with_raw_tweets("\n".join(tweets_gen), trending._get_name())
 
 
 async def fetch_and_store_list(tweets_collection: Collection):
