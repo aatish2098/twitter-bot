@@ -51,3 +51,6 @@ Maintain a list of footballers famous and clubs famous, keep iterating and check
 6. Every tweet is scheduled between 2 - 15 min and put out
 7. For increasing knowledge, keep fetching from lists and following to get high quality data every one hour or so, make another list so that as much good info as possible is with us
 8. Polling is run on different account and posting on different -- later
+
+Use separate list for major clubs and transfer news and football news, fetch around 200-300 tweets from each in every few minutes and feed to database
+list=[208149258,1451872529140813829,1345098781314973697,234769357,1313187923429404672,33445961,1238730743569772544,1877641960028082596,104274535,1459083476892893185,1523307912856285184,1460898747349667840]

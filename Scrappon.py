@@ -20,16 +20,15 @@ from dotenv import load_dotenv
 
 # CLEANING TWEET TEXT
 def clean_tweet_text(tweet_text: str) -> str:
-    tweet_text = re.sub(r"http\S+", "", tweet_text)  # remove urls
     translated = GoogleTranslator(source="auto", target="en").translate(tweet_text)
     return translated
 
 
 def add_to_qdrant(tweet: Any, cleaned_text: str) -> Document:
+    global doc
     if len(cleaned_text.split()) > 3:
         embeddings = OpenAIEmbedder().get_embedding(cleaned_text)
-        meta_data = {}
-        meta_data["tweet_id"] = tweet.get("id")
+        meta_data = {"tweet_id": tweet.get("id")}
         # Created_on (ISO date string)
         # Usually nested like: "created_on": {"$date": "..."}
         created_on = None
@@ -93,33 +92,38 @@ async def fetch_and_post_on_trending():
                 if trending_now or trending_now.lower() in tweet.text:
                     cleaned_text = clean_tweet_text(tweet.text)
                     tweets_gen.append(cleaned_text)
-            if len(tweets_gen)>15:
-                tweet_content= generate_with_vector_search(topic=trending_now,tweets="\n".join(tweets_gen),vectordb=fetch_qdrant())
-                await app.create_tweet(text=tweet_content)
+            if len(tweets_gen) > 15:
 
+                tweet_content = generate_with_vector_search(topic=trending_now, tweets=tweets_gen,
+                                                            vectordb=fetch_qdrant())
+                await app.create_tweet(text=tweet_content)
 
 
 async def fetch_and_store_list(tweets_collection: Collection):
     load_dotenv()
     app = TwitterAsync("session")
     await app.sign_in(os.environ['username'], os.environ['password'])
-    tweets = await app.get_list_tweets(list_id=1877641960028082596, pages=3, wait_time=2)
-    # tweets = app.get_home_timeline(timeline_type=HOME_TIMELINE_TYPE_FOLLOWING)
-    topic_keywords = set(word.lower() for topic in topics for word in topic.split())
-    doclist = []
-    for tweet in tweets:
-        if isinstance(tweet, SelfThread):
-            for thread in tweet.tweets:
-                if any(word.lower() in topic_keywords for word in thread.text.split()):
-                    cleaned_text = clean_tweet_text(thread.text)
+    tweet_lists = [1451872529140813829, 1345098781314973697, 234769357, 1313187923429404672, 33445961,
+            1238730743569772544, 1877641960028082596, 104274535, 1459083476892893185, 1523307912856285184,
+            1460898747349667840]
+    for list_id in tweet_lists:
+        tweets = await app.get_list_tweets(list_id=list_id, pages=1, wait_time=2)
+        # tweets = app.get_home_timeline(timeline_type=HOME_TIMELINE_TYPE_FOLLOWING)
+        topic_keywords = set(word.lower() for topic in topics for word in topic.split())
+        doclist = []
+        for tweet in tweets:
+            if isinstance(tweet, SelfThread):
+                for thread in tweet.tweets:
+                    if any(word.lower() in topic_keywords for word in thread.text.split()):
+                        cleaned_text = clean_tweet_text(thread.text)
+                        doclist.append(add_to_qdrant(tweet, cleaned_text))
+                        add_to_mongo(thread, cleaned_text, tweets_collection)
+            else:
+                if any(word.lower() in topic_keywords for word in tweet.text.split()):
+                    cleaned_text = clean_tweet_text(tweet.text)
                     doclist.append(add_to_qdrant(tweet, cleaned_text))
-                    add_to_mongo(thread, cleaned_text, tweets_collection)
-        else:
-            if any(word.lower() in topic_keywords for word in tweet.text.split()):
-                cleaned_text = clean_tweet_text(tweet.text)
-                doclist.append(add_to_qdrant(tweet, cleaned_text))
-                add_to_mongo(tweet, cleaned_text, tweets_collection)
-    store_with_embedding(doclist)
+                    add_to_mongo(tweet, cleaned_text, tweets_collection)
+        store_with_embedding(doclist)
 
 
 async def fetch_and_reply_notification() -> str:
@@ -127,17 +131,20 @@ async def fetch_and_reply_notification() -> str:
     app = TwitterAsync("session")
     await app.sign_in(os.environ['username'], os.environ['password'])
     # tweets = await app.get_tweet_notifications(pages=3, wait_time=2)
-    tweets1 = await app.get_home_timeline(timeline_type=HOME_TIMELINE_TYPE_FOLLOWING,pages=1)
+    tweets1 = await app.get_home_timeline(timeline_type=HOME_TIMELINE_TYPE_FOLLOWING, pages=1)
     for tweet in tweets1.tweets:
         if isinstance(tweet, SelfThread):
             for thread in tweet.tweets:
                 cleaned_text = clean_tweet_text(thread.text)
-                #generate_notification_reply(cleaned_text,fetch_qdrant())
+                # generate_notification_reply(cleaned_text,fetch_qdrant())
         else:
             cleaned_text = clean_tweet_text(tweet.text)
-            if cleaned_text >= 10:
-                tweet_content=generate_notification_reply(cleaned_text,fetch_qdrant())
-                await app.create_tweet(text=tweet_content,reply_to=tweet.id)
+            if str(tweet.author.username) == "great_o1d":
+                continue
+            elif len(cleaned_text) >= 10:
+                tweet_content = generate_notification_reply(cleaned_text, fetch_qdrant())
+                await app.create_tweet(text=tweet_content, reply_to=tweet.id)
+
 
 # MAIN ENTRY POINT
 if __name__ == "__main__":
