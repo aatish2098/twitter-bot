@@ -12,7 +12,7 @@ from typing import Any
 from pymongo.collection import Collection
 
 from ballknowledge import store_with_embedding, fetch_qdrant
-from search import fetch_with_raw_tweets, generate_with_vector_search, generate_notification_reply
+from search import generate_with_vector_search, generate_notification_reply
 from topics import topics
 from tweety.filters import SearchFilters
 from dotenv import load_dotenv
@@ -93,8 +93,10 @@ async def fetch_and_post_on_trending():
                 if trending_now or trending_now.lower() in tweet.text:
                     cleaned_text = clean_tweet_text(tweet.text)
                     tweets_gen.append(cleaned_text)
-            if tweets_gen:
-                generate_with_vector_search(topic=trending_now,tweets="\n".join(tweets_gen),vectordb=fetch_qdrant())
+            if len(tweets_gen)>15:
+                tweet_content= generate_with_vector_search(topic=trending_now,tweets="\n".join(tweets_gen),vectordb=fetch_qdrant())
+                await app.create_tweet(text=tweet_content)
+
 
 
 async def fetch_and_store_list(tweets_collection: Collection):
@@ -125,21 +127,19 @@ async def fetch_and_reply_notification() -> str:
     app = TwitterAsync("session")
     await app.sign_in(os.environ['username'], os.environ['password'])
     # tweets = await app.get_tweet_notifications(pages=3, wait_time=2)
-    tweets1 = await app.get_home_timeline(timeline_type=HOME_TIMELINE_TYPE_FOLLOWING)
+    tweets1 = await app.get_home_timeline(timeline_type=HOME_TIMELINE_TYPE_FOLLOWING,pages=1)
     for tweet in tweets1.tweets:
         if isinstance(tweet, SelfThread):
             for thread in tweet.tweets:
                 cleaned_text = clean_tweet_text(thread.text)
-                generate_notification_reply(cleaned_text,fetch_qdrant())
+                #generate_notification_reply(cleaned_text,fetch_qdrant())
         else:
             cleaned_text = clean_tweet_text(tweet.text)
-            generate_notification_reply(cleaned_text,fetch_qdrant())
-
-
-
+            if cleaned_text >= 10:
+                tweet_content=generate_notification_reply(cleaned_text,fetch_qdrant())
+                await app.create_tweet(text=tweet_content,reply_to=tweet.id)
 
 # MAIN ENTRY POINT
-
 if __name__ == "__main__":
     dotenv_path = os.path.join(os.getcwd(), '.env')
     load_dotenv(dotenv_path=dotenv_path)
