@@ -43,7 +43,7 @@ def add_to_qdrant(tweet: Any, cleaned_text: str) -> Document:
         # Likes & Views
         meta_data["likes"] = tweet.get("likes")
         meta_data["views"] = tweet.get("views")
-        print(f"Generated {embeddings} for the tweet: {cleaned_text}")
+        print(f"Generated embeddings for the tweet: {cleaned_text}")
         doc = Document(meta_data=meta_data, content=cleaned_text, embeddings=embeddings, name=meta_data['username'])
     return doc
 
@@ -99,7 +99,7 @@ async def fetch_and_store_list(tweets_collection: Collection):
     load_dotenv()
     app = TwitterAsync("session")
     await app.sign_in(os.environ['username'], os.environ['password'])
-    tweets = await app.get_list_tweets(list_id=1877641960028082596, pages=1, wait_time=2)
+    tweets = await app.get_list_tweets(list_id=1877641960028082596, pages=3, wait_time=2)
     # tweets = app.get_home_timeline(timeline_type=HOME_TIMELINE_TYPE_FOLLOWING)
     topic_keywords = set(word.lower() for topic in topics for word in topic.split())
     doclist = []
@@ -115,7 +115,7 @@ async def fetch_and_store_list(tweets_collection: Collection):
                 cleaned_text = clean_tweet_text(tweet.text)
                 doclist.append(add_to_qdrant(tweet, cleaned_text))
                 add_to_mongo(tweet, cleaned_text, tweets_collection)
-    vectordb=store_with_embedding(doclist)
+    store_with_embedding(doclist)
 
 
 
@@ -129,5 +129,5 @@ if __name__ == "__main__":
     tweets_collection = db.OldTweets
     tweets_generated=generate_with_vector_search(fetch_qdrant())
     print(tweets_generated)
-    #asyncio.run(fetch_and_store_list(tweets_collection))
+    # asyncio.run(fetch_and_store_list(tweets_collection))
     # asyncio.run(fetch_and_post_on_trending())

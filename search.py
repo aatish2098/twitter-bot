@@ -59,12 +59,11 @@ def generate_with_vector_search(vectordb: Qdrant) -> str:
         num_documents=10,
 
     )
-    tweets=knowledge_base.search(query="Manchester United")
+    tweets=knowledge_base.search(query="Ronaldo")
     reference=''
     for tweet in tweets:
         tweetdict = tweet.to_dict()
         reference += tweetdict['content'] + "\n"
-    print(reference)
     tweet_content = ""
     agent = Agent(
         name="Banter Ball",
@@ -99,7 +98,7 @@ def generate_with_vector_search(vectordb: Qdrant) -> str:
         knowledge=knowledge_base)
 
     response_stream: Iterator[RunResponse] = agent.run(
-        f"{reference} You have been given tweets from a number of popular accounts\n\nGenerate 4-5 tweets by analyzing these tweets. Keep it under 280 characters and write it referring the above tweets and with focus to be hurtful and sometimes rage bait, do not use hashtag, at maximum one hashtag and sometimes add emojis"
+        f"{reference} You have been given tweets from a number of popular accounts\n\nGenerate 4-5 tweets by analyzing these tweets. Keep it under 280 characters and write it referring the above tweets and with focus to be hurtful and sometimes rage bait, do not use hashtag, at maximum one hashtag and sometimes add emojis. If you don't feel any relevancy in tweets given then do not hallicunate, and send I do not know"
     )
     # Assuming response_stream is an iterator of RunResponse objects
     for response in response_stream:

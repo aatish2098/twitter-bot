@@ -39,3 +39,15 @@ Option A: First do a vector embedding search to see which tweets semantically ma
 Option B: Use a heuristic that factors in both semantic relevance + popularity (likes). You might do a quick filter for tweets with “at least X likes” to ensure they’re meaningful.
 
 Maintain a list of footballers famous and clubs famous, keep iterating and checking if there multiple tweets in the last few hours or minutes based on created_on, then we make a tweet
+
+
+### Update 12-01-2025
+
+1. Add notifications for famous accounts, who you want to consider replying or not based on available infor and tweet germane to it o not
+2. The notification tweets will be ran through every hour and based on tweet_id, we upsert so no duplicates
+3. Trending can work as it is, just add more context using vector database and recent tweets to figure out, ran through every hour and checked if too similar to previous 3 tweets then skip
+4. After going through lists, see if you want to make any original tweet if the list has lots of commonality going on
+5. Add logic for Reply with LIKE or reply with tweet_content or reply I don't know as per hallucination mechanism
+6. Every tweet is scheduled between 2 - 15 min and put out
+7. For increasing knowledge, keep fetching from lists and following to get high quality data every one hour or so, make another list so that as much good info as possible is with us
+8. Polling is run on different account and posting on different -- later
