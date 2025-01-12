@@ -245,5 +245,6 @@ topics = [
     "Graham Potter",
     "Hansi Flick",
     "Goldbridge",
-    "Robbie"
+    "Robbie",
+    "Arsenal vs Manchester United"
 ]

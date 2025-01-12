@@ -6,12 +6,13 @@ from phi.document import Document
 from phi.embedder.openai import OpenAIEmbedder
 from tweety import TwitterAsync
 from pymongo import MongoClient
+from tweety.constants import HOME_TIMELINE_TYPE_FOLLOWING
 from tweety.types import SelfThread
 from typing import Any
 from pymongo.collection import Collection
 
 from ballknowledge import store_with_embedding, fetch_qdrant
-from search import fetch_with_raw_tweets, generate_with_vector_search
+from search import fetch_with_raw_tweets, generate_with_vector_search, generate_notification_reply
 from topics import topics
 from tweety.filters import SearchFilters
 from dotenv import load_dotenv
@@ -20,7 +21,7 @@ from dotenv import load_dotenv
 # CLEANING TWEET TEXT
 def clean_tweet_text(tweet_text: str) -> str:
     tweet_text = re.sub(r"http\S+", "", tweet_text)  # remove urls
-    translated = GoogleTranslator(source="auto", target="en").translate(tweet_text).strip()
+    translated = GoogleTranslator(source="auto", target="en").translate(tweet_text)
     return translated
 
 
@@ -92,7 +93,8 @@ async def fetch_and_post_on_trending():
                 if trending_now or trending_now.lower() in tweet.text:
                     cleaned_text = clean_tweet_text(tweet.text)
                     tweets_gen.append(cleaned_text)
-            fetch_with_raw_tweets("\n".join(tweets_gen), trending_now)
+            if tweets_gen:
+                generate_with_vector_search(topic=trending_now,tweets="\n".join(tweets_gen),vectordb=fetch_qdrant())
 
 
 async def fetch_and_store_list(tweets_collection: Collection):
@@ -118,6 +120,23 @@ async def fetch_and_store_list(tweets_collection: Collection):
     store_with_embedding(doclist)
 
 
+async def fetch_and_reply_notification() -> str:
+    load_dotenv()
+    app = TwitterAsync("session")
+    await app.sign_in(os.environ['username'], os.environ['password'])
+    # tweets = await app.get_tweet_notifications(pages=3, wait_time=2)
+    tweets1 = await app.get_home_timeline(timeline_type=HOME_TIMELINE_TYPE_FOLLOWING)
+    for tweet in tweets1.tweets:
+        if isinstance(tweet, SelfThread):
+            for thread in tweet.tweets:
+                cleaned_text = clean_tweet_text(thread.text)
+                generate_notification_reply(cleaned_text,fetch_qdrant())
+        else:
+            cleaned_text = clean_tweet_text(tweet.text)
+            generate_notification_reply(cleaned_text,fetch_qdrant())
+
+
+
 
 # MAIN ENTRY POINT
 
@@ -127,7 +146,8 @@ if __name__ == "__main__":
     client = MongoClient("mongodb://localhost:27017/")
     db = client['Knowledge']
     tweets_collection = db.OldTweets
-    tweets_generated=generate_with_vector_search(fetch_qdrant())
-    print(tweets_generated)
+    # tweets_generated = generate_with_vector_search(fetch_qdrant())
+    # asyncio.run(fetch_and_reply_notification())
+    asyncio.run(fetch_and_post_on_trending())
     # asyncio.run(fetch_and_store_list(tweets_collection))
     # asyncio.run(fetch_and_post_on_trending())
