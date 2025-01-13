@@ -24,7 +24,7 @@ def clean_tweet_text(tweet_text: str) -> str:
     return translated
 
 
-def add_to_qdrant(tweet: Any, cleaned_text: str) -> Document:
+def add_to_qdrant(tweet: Any, cleaned_text: str, listid: int) -> Document:
     global doc
     if len(cleaned_text.split()) > 3:
         embeddings = OpenAIEmbedder().get_embedding(cleaned_text)
@@ -40,6 +40,7 @@ def add_to_qdrant(tweet: Any, cleaned_text: str) -> Document:
         author = tweet.get("author", {})
         meta_data["username"] = author.get("username")
         meta_data["verified"] = author.get("verified")
+        meta_data["listid"] = str(listid)
         # Likes & Views
         meta_data["likes"] = tweet.get("likes")
         meta_data["views"] = tweet.get("views")
@@ -48,31 +49,34 @@ def add_to_qdrant(tweet: Any, cleaned_text: str) -> Document:
     return doc
 
 
-def add_to_mongo(tweet: Any, cleaned_text: str, tweets_collection: Collection) -> None:
-    # Check if tweet has more than 3 words
-    if len(cleaned_text.split()) > 3:
-        # Prepare doc for MongoDB
-        doc = {
-            "tweet_id": str(tweet.id),
-            "username": tweet.author.username,
-            "Verified": tweet.author.verified,
-            "tweet_text": cleaned_text,
-            "created_on": tweet.created_on,
-            "all_details": tweet
-        }
-        # Insert into MongoDB
-        existing_doc = tweets_collection.find_one({"tweet_id": str(tweet.id)})
-        # fetch and add to DB logic, to reply later if met threshold
-        if existing_doc:
-            tweets_collection.update_one(
-                {"tweet_id": str(tweet.id)},
-                {"$set": doc}
-            )
-            # print(f"Updated tweet by {tweet.author.username}")
-        else:
-            # Insert new tweet
-            # print(f"Adding new tweet by {tweet.author.username}")
-            tweets_collection.insert_one(doc)
+# def add_to_mongo(tweet: Any, cleaned_text: str, tweets_collection: Collection) -> None:
+#     # Check if tweet has more than 3 words
+#     client = MongoClient("mongodb://localhost:27017/")
+#     db = client['Knowledge']
+#     tweets_collection = db.OldTweets
+#     if len(cleaned_text.split()) > 3:
+#         # Prepare doc for MongoDB
+#         doc = {
+#             "tweet_id": str(tweet.id),
+#             "username": tweet.author.username,
+#             "Verified": tweet.author.verified,
+#             "tweet_text": cleaned_text,
+#             "created_on": tweet.created_on,
+#             "all_details": tweet
+#         }
+#         # Insert into MongoDB
+#         existing_doc = tweets_collection.find_one({"tweet_id": str(tweet.id)})
+#         # fetch and add to DB logic, to reply later if met threshold
+#         if existing_doc:
+#             tweets_collection.update_one(
+#                 {"tweet_id": str(tweet.id)},
+#                 {"$set": doc}
+#             )
+#             # print(f"Updated tweet by {tweet.author.username}")
+#         else:
+#             # Insert new tweet
+#             # print(f"Adding new tweet by {tweet.author.username}")
+#             tweets_collection.insert_one(doc)
 
 
 async def fetch_and_post_on_trending():
@@ -116,13 +120,13 @@ async def fetch_and_store_list(tweets_collection: Collection):
                 for thread in tweet.tweets:
                     if any(word.lower() in topic_keywords for word in thread.text.split()):
                         cleaned_text = clean_tweet_text(thread.text)
-                        doclist.append(add_to_qdrant(tweet, cleaned_text))
-                        add_to_mongo(thread, cleaned_text, tweets_collection)
+                        doclist.append(add_to_qdrant(tweet, cleaned_text, list_id))
+                        # add_to_mongo(thread, cleaned_text, tweets_collection)
             else:
                 if any(word.lower() in topic_keywords for word in tweet.text.split()):
                     cleaned_text = clean_tweet_text(tweet.text)
-                    doclist.append(add_to_qdrant(tweet, cleaned_text))
-                    add_to_mongo(tweet, cleaned_text, tweets_collection)
+                    doclist.append(add_to_qdrant(tweet, cleaned_text, list_id))
+                    # add_to_mongo(tweet, cleaned_text, tweets_collection)
         store_with_embedding(doclist)
 
 
@@ -150,11 +154,7 @@ async def fetch_and_reply_notification() -> str:
 if __name__ == "__main__":
     dotenv_path = os.path.join(os.getcwd(), '.env')
     load_dotenv(dotenv_path=dotenv_path)
-    client = MongoClient("mongodb://localhost:27017/")
-    db = client['Knowledge']
-    tweets_collection = db.OldTweets
-    # tweets_generated = generate_with_vector_search(fetch_qdrant())
-    # asyncio.run(fetch_and_reply_notification())
     asyncio.run(fetch_and_post_on_trending())
+    # asyncio.run(fetch_and_reply_notification())
     # asyncio.run(fetch_and_store_list(tweets_collection))
     # asyncio.run(fetch_and_post_on_trending())

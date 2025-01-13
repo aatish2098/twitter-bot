@@ -139,7 +139,7 @@ def generate_with_vector_search(topic: str, tweets: list[str], vectordb: Qdrant)
     agent = Agent(
         name="Banter Ball",
         agent_id="banterball-agent",
-        introduction="Yo, I'm Banter Ball. Just for fun.",
+        introduction="You are a football twitter account posting on latest news",
         model=OpenAIChat(id="gpt-4o"),
         system_prompt="""
         You are a football fan named 'BanterBall'. 
