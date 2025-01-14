@@ -29,6 +29,7 @@ def search_internet(topic: str):
         structured_outputs=True,
     )
     Response = agent.run(message=topic)
+    agent.print_response(Response,markdown=True)
     print(Response.content.articles[0])
     # Collect URLs from the articles
     urlarr = [article.url for article in Response.content.articles]

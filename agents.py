@@ -5,7 +5,7 @@ from phi.model.openai import OpenAIChat
 from phi.run.response import RunResponse
 from phi.agent import Agent
 from phi.vectordb.qdrant import Qdrant
-
+from phi.utils.pprint import pprint_run_response
 from qdrantfunctions import fetch_on_topic
 from searchdefi import get_scanner_project
 
@@ -60,6 +60,7 @@ def analysis_of_contract(address: str, chainid: int) -> str:
 
     print("running search")
     scanner=get_scanner_project(address, chainid)
+    scanner=str(scanner)
     print("agent start")
     agent = Agent(
         name="Crypto AI agent",
@@ -74,7 +75,6 @@ def analysis_of_contract(address: str, chainid: int) -> str:
         system_prompt=""" 
         You analyze cryptocurrencies, blockchain projects, and market trends. 
         You are given details of coin and you've to assess it and tell if its good or not.
-        Do not be repetitive with your language; check the history of your responses to maintain variety.
         """,
         use_default_system_message=False,
         task="Give comprehensive assessment for the coin details provided",
@@ -84,19 +84,16 @@ def analysis_of_contract(address: str, chainid: int) -> str:
         prevent_prompt_leakage=True,
         add_name_to_instructions=False,
         add_datetime_to_instructions=True,
-        parse_response=True,
-        add_history_to_messages=True,
-        num_history_response=5)
+        parse_response=True)
 
     response_stream = agent.run(
-        f"{scanner}You have been given the Scanned results of a token\n\n"
-        f"Based on the "
-        f"Generate one tweet by analyzing these tweets and make a tweet of your own."
-        f" but do not use hashtag (at maximum one hashtag), and sometimes add emojis."
-        f"If you don't feel any relevancy in tweets given, then do not hallucinate and reply with 'I do not know'.")
-    print(response_stream)
+        f"{scanner} \n\nYou have been given the Scanned results of a token\n\n"
+        f" by analyzing these metrics, give a comprehensive analysis of your own."
+        f" Tell the pros and cons and if the analysis shows project is promising or not."
+        f"If you don't feel any relevancy, then do not hallucinate and reply with 'I do not know'.")
+    print(response_stream.content)
+    pprint_run_response(run_response=response_stream,markdown=True)
     # Iterate through the response_stream
-    agent.print_response(response_stream,markdown=True)
     return response_stream
 
 

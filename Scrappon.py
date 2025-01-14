@@ -12,9 +12,9 @@ from typing import Any
 from pymongo.collection import Collection
 
 from qdrantfunctions import store_with_embedding, fetch_qdrant
-from search import generate_with_vector_search,analysis_of_contract
+from agents import generate_with_vector_search,analysis_of_contract
 from topics import get_trending
-from searcher import search_internet
+from searchweb import search_internet
 from dotenv import load_dotenv
 
 
@@ -150,9 +150,9 @@ if __name__ == "__main__":
     print(get_trending())
     # asyncio.run(fetch_and_reply_notification())
     # asyncio.run(fetch_and_store_list())
-    # search_internet("AIXBT")
-    address = "0x4f9fd6be4a90f2620860d680c0d4d5fb53d1a825"
-    chain_id = 49
+    # search_internet("ETH")
+    address = "HeLp6NuQkmYB4pYWo2zYs22mESHXPQYzXbB8n4V98jwC"
+    chain_id = 12
     analysis_of_contract(address=address,chainid=chain_id)
     # asyncio.run(create_tweet_on_trending_topic("AIXBT"))
     # asyncio.run(fetch_and_post_on_trending())
