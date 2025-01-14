@@ -11,41 +11,45 @@ from tweety.types import SelfThread
 from typing import Any
 from pymongo.collection import Collection
 
-from ballknowledge import store_with_embedding, fetch_qdrant
-from search import generate_with_vector_search, generate_notification_reply
-from topics import topics
-from tweety.filters import SearchFilters
+from qdrantfunctions import store_with_embedding, fetch_qdrant
+from search import generate_with_vector_search,analysis_of_contract
+from topics import get_trending
+from searcher import search_internet
 from dotenv import load_dotenv
 
 
 # CLEANING TWEET TEXT
-def clean_tweet_text(tweet_text: str) -> str:
-    translated = GoogleTranslator(source="auto", target="en").translate(tweet_text)
+def clean_tweet_text(tweet: Any) -> str:
+    cleaned=re.sub(r"https?:\/\/\S+", "", tweet.text)
+    if tweet.language != "en" or tweet.language != "en-gb":
+        translated = GoogleTranslator(source="auto", target="en").translate(cleaned)
+    else:
+        return cleaned
     return translated
 
 
-def add_to_qdrant(tweet: Any, cleaned_text: str, listid: int) -> Document:
+def add_to_qdrant(coin: list, tweet: Any, cleaned_text) -> Document:
     global doc
-    if len(cleaned_text.split()) > 3:
-        embeddings = OpenAIEmbedder().get_embedding(cleaned_text)
-        meta_data = {"tweet_id": tweet.get("id")}
-        # Created_on (ISO date string)
-        # Usually nested like: "created_on": {"$date": "..."}
-        created_on = None
-        if "created_on" in tweet:
-            created_on = tweet["created_on"]
-        meta_data["created_on"] = created_on
-        # Username & Verified
-        # Usually inside tweet["author"]
-        author = tweet.get("author", {})
-        meta_data["username"] = author.get("username")
-        meta_data["verified"] = author.get("verified")
-        meta_data["listid"] = str(listid)
-        # Likes & Views
-        meta_data["likes"] = tweet.get("likes")
-        meta_data["views"] = tweet.get("views")
-        print(f"Generated embeddings for the tweet: {cleaned_text}")
-        doc = Document(meta_data=meta_data, content=cleaned_text, embeddings=embeddings, name=meta_data['username'])
+    embeddings = OpenAIEmbedder().get_embedding(cleaned_text)
+    meta_data = {"tweet_id": tweet.get("id")}
+    # Created_on (ISO date string)
+    # Usually nested like: "created_on": {"$date": "..."}
+    created_on = None
+    if "created_on" in tweet:
+        created_on = tweet["created_on"]
+    meta_data["created_on"] = created_on
+    # Username & Verified
+    # Usually inside tweet["author"]
+    author = tweet.get("author", {})
+    meta_data["username"] = author.get("username")
+    meta_data["verified"] = author.get("verified")
+    # Likes & Views
+    meta_data["likes"] = tweet.get("likes")
+    meta_data["views"] = tweet.get("views")
+    meta_data["symbol"] = coin[1]
+    meta_data["name"] = coin[0]
+    print(f"Generated embeddings for the tweet: {tweet.text}")
+    doc = Document(meta_data=meta_data, content=cleaned_text, embeddings=embeddings, name=coin[0])
     return doc
 
 
@@ -79,82 +83,76 @@ def add_to_qdrant(tweet: Any, cleaned_text: str, listid: int) -> Document:
 #             tweets_collection.insert_one(doc)
 
 
-async def fetch_and_post_on_trending():
+async def fetch_and_store_list():
     load_dotenv()
     app = TwitterAsync("session")
     await app.sign_in(os.environ['username'], os.environ['password'])
-    topic_keywords = set(word.lower() for topic in topics for word in topic.split())
-    trendings = await app.get_trends()
-    for trending in trendings:
-        trending_now = str(trending._get_name())
-        print(f"This {trending_now} starts here:")
-        if trending_now in topics or trending_now.lower() in topic_keywords:
-            trending_tweets = await app.search(trending._get_name(), filter_=SearchFilters.Latest(), pages=1,
-                                               wait_time=2)
-            tweets_gen = []
-            for tweet in trending_tweets:
-                if trending_now or trending_now.lower() in tweet.text:
-                    cleaned_text = clean_tweet_text(tweet.text)
-                    tweets_gen.append(cleaned_text)
-            if len(tweets_gen) > 15:
-
-                tweet_content = generate_with_vector_search(topic=trending_now, tweets=tweets_gen,
-                                                            vectordb=fetch_qdrant())
-                await app.create_tweet(text=tweet_content)
-
-
-async def fetch_and_store_list(tweets_collection: Collection):
-    load_dotenv()
-    app = TwitterAsync("session")
-    await app.sign_in(os.environ['username'], os.environ['password'])
-    tweet_lists = [1451872529140813829, 1345098781314973697, 234769357, 1313187923429404672, 33445961,
-            1238730743569772544, 1877641960028082596, 104274535, 1459083476892893185, 1523307912856285184,
-            1460898747349667840]
+    tweet_lists = [1602917243742035968, 1011591069782499328]
+    trending = get_trending()
+    all_entries = []
+    for coin in trending:
+        name = coin["name"]
+        symbol = coin["symbol"]
+        dollar_symbol = f"${symbol}"
+        coin_array = [name, symbol, dollar_symbol]
+        all_entries.append(coin_array)
+    doclist = []
     for list_id in tweet_lists:
-        tweets = await app.get_list_tweets(list_id=list_id, pages=1, wait_time=2)
+        tweets = await app.get_list_tweets(list_id=list_id, pages=3, wait_time=2)
         # tweets = app.get_home_timeline(timeline_type=HOME_TIMELINE_TYPE_FOLLOWING)
-        topic_keywords = set(word.lower() for topic in topics for word in topic.split())
-        doclist = []
         for tweet in tweets:
             if isinstance(tweet, SelfThread):
                 for thread in tweet.tweets:
-                    if any(word.lower() in topic_keywords for word in thread.text.split()):
-                        cleaned_text = clean_tweet_text(thread.text)
-                        doclist.append(add_to_qdrant(tweet, cleaned_text, list_id))
-                        # add_to_mongo(thread, cleaned_text, tweets_collection)
+                    if len(thread.text) > 30:
+                        for coin in all_entries:
+                            if any(detail in coin for detail in thread.text.split()):
+                                cleaned_text=clean_tweet_text(thread)
+                                doclist.append(add_to_qdrant(coin,thread, cleaned_text))
             else:
-                if any(word.lower() in topic_keywords for word in tweet.text.split()):
-                    cleaned_text = clean_tweet_text(tweet.text)
-                    doclist.append(add_to_qdrant(tweet, cleaned_text, list_id))
-                    # add_to_mongo(tweet, cleaned_text, tweets_collection)
-        store_with_embedding(doclist)
+                if len(tweet.text) > 30:
+                    for coin in all_entries:
+                        if any(detail in coin for detail in tweet.text.split()):
+                            cleaned_text = clean_tweet_text(thread)
+                            doclist.append(add_to_qdrant(coin, tweet, cleaned_text))
+    store_with_embedding(doclist)
 
 
-async def fetch_and_reply_notification() -> str:
-    load_dotenv()
+# async def fetch_and_reply_notification() -> str:
+#     load_dotenv()
+#     app = TwitterAsync("session")
+#     await app.sign_in(os.environ['username'], os.environ['password'])
+#     # tweets = await app.get_tweet_notifications(pages=3, wait_time=2)
+#     tweets1 = await app.get_home_timeline(timeline_type=HOME_TIMELINE_TYPE_FOLLOWING, pages=1)
+#     for tweet in tweets1.tweets:
+#         if isinstance(tweet, SelfThread):
+#             for thread in tweet.tweets:
+#                 cleaned_text = clean_tweet_text(thread)
+#                 # generate_notification_reply(cleaned_text,fetch_qdrant())
+#         else:
+#             cleaned_text = clean_tweet_text(tweet)
+#             if str(tweet.author.username) == "great_o1d":
+#                 continue
+#             elif len(cleaned_text) >= 10:
+#                 tweet_content = generate_notification_reply(cleaned_text, fetch_qdrant())
+#                 await app.create_tweet(text=tweet_content, reply_to=tweet.id)
+
+
+async def create_tweet_on_trending_topic(topic: str):
     app = TwitterAsync("session")
     await app.sign_in(os.environ['username'], os.environ['password'])
-    # tweets = await app.get_tweet_notifications(pages=3, wait_time=2)
-    tweets1 = await app.get_home_timeline(timeline_type=HOME_TIMELINE_TYPE_FOLLOWING, pages=1)
-    for tweet in tweets1.tweets:
-        if isinstance(tweet, SelfThread):
-            for thread in tweet.tweets:
-                cleaned_text = clean_tweet_text(thread.text)
-                # generate_notification_reply(cleaned_text,fetch_qdrant())
-        else:
-            cleaned_text = clean_tweet_text(tweet.text)
-            if str(tweet.author.username) == "great_o1d":
-                continue
-            elif len(cleaned_text) >= 10:
-                tweet_content = generate_notification_reply(cleaned_text, fetch_qdrant())
-                await app.create_tweet(text=tweet_content, reply_to=tweet.id)
 
+    await app.create_tweet(text=generate_with_vector_search(topic, fetch_qdrant()))
 
 # MAIN ENTRY POINT
 if __name__ == "__main__":
     dotenv_path = os.path.join(os.getcwd(), '.env')
     load_dotenv(dotenv_path=dotenv_path)
-    asyncio.run(fetch_and_post_on_trending())
+    print(get_trending())
     # asyncio.run(fetch_and_reply_notification())
-    # asyncio.run(fetch_and_store_list(tweets_collection))
+    # asyncio.run(fetch_and_store_list())
+    # search_internet("AIXBT")
+    address = "0x4f9fd6be4a90f2620860d680c0d4d5fb53d1a825"
+    chain_id = 49
+    analysis_of_contract(address=address,chainid=chain_id)
+    # asyncio.run(create_tweet_on_trending_topic("AIXBT"))
     # asyncio.run(fetch_and_post_on_trending())
